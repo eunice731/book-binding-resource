@@ -85,18 +85,19 @@
             color: #fff;
         }
 
-        /* --- Gallery Grid --- */
+        /* --- Gallery Grid (masonry-style, image-size-based) --- */
         .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: var(--gap);
+            column-count: 4;                 /* 데스크탑: 4열 */
+            column-gap: var(--gap);
             width: 100%;
         }
 
         .gallery-item {
             position: relative;
+            display: inline-block;           /* 이미지 크기에 맞춰 배치 */
+            width: 100%;
             break-inside: avoid;
-            margin-bottom: 0;
+            margin-bottom: var(--gap);
             opacity: 0;
             transform: translateY(20px);
             animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -189,6 +190,13 @@
             to { opacity: 1; }
         }
 
+        /* --- Responsive: 중간 사이즈 --- */
+        @media (max-width: 1200px) {
+            .gallery-grid {
+                column-count: 3;
+            }
+        }
+
         /* --- Mobile Responsive --- */
         @media (max-width: 768px) {
             .container {
@@ -214,13 +222,17 @@
                 padding: 6px 16px;
                 font-size: 0.9rem;
             }
+
+            /* 모바일: 2열 매거진 */
             .gallery-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
+                column-count: 2;
+                column-gap: 10px;
             }
             .gallery-item {
                 border-radius: 8px;
+                margin-bottom: 10px;
             }
+
             .lightbox-close {
                 top: 20px;
                 right: 20px;
@@ -247,8 +259,7 @@
             </nav>
         </header>
 
-        <main class="gallery-grid" id="gallery">
-            </main>
+        <main class="gallery-grid" id="gallery"></main>
     </div>
 
     <div class="lightbox" id="lightbox">
@@ -301,7 +312,7 @@
             { category: 'glue', src: 'glue/_.jpeg', title: 'Glue Binding' },
 
             // --- Paper Folding ---
-            { category: 'paper folding', src: 'paper folding/@itselnacin.jpeg', title: '@itselnacin' },
+            { category: 'paper folding', src: '@itselnacin.jpeg', title: '@itselnacin' },
             { category: 'paper folding', src: 'paper folding/All posts • Instagram (2).jpeg', title: 'Instagram Post' },
             { category: 'paper folding', src: 'paper folding/Artist book by Emma Lawrenson.jpeg', title: 'Emma Lawrenson' },
             { category: 'paper folding', src: 'paper folding/Bea Jakob, Kalligrafie, Kriegstetten, Solothurn.jpeg', title: 'Bea Jakob' },
@@ -416,7 +427,7 @@
             filteredData.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'gallery-item';
-                // 애니메이션 딜레이: index가 커질수록 너무 느려지지 않도록 최대값 제한 또는 배치별 계산
+                // 애니메이션 딜레이 (너무 느려지지 않게 최대값 제한)
                 div.style.animationDelay = `${Math.min(index * 30, 600)}ms`;
                 
                 div.innerHTML = `
@@ -462,7 +473,6 @@
 
         // 초기 렌더링
         renderGallery('all');
-
     </script>
 </body>
 </html>
