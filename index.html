@@ -1,468 +1,668 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>binding</title>
-    <style>
-        /* --- CSS Reset & Variables --- */
-        :root {
-            --bg-color: #ffffff;
-            --text-main: #1f1f1f;
-            --text-sub: #444746;
-            --surface-color: #f8f9fa;
-            --accent-color: #000000;
-            --radius-chip: 32px;
-            --radius-card: 12px;
-            --gap: 24px;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
+  <meta charset="UTF-8" />
+  <title>Portfolio Physics Wall (Puzzle Slots)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #ffffff;
+    }
+    canvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      background: #ffffff;
+      touch-action: none; /* 모바일에서 기본 스크롤/줌 방지 */
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    #intro {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-size: 1.05rem;
+      color: #999;
+      text-align: center;
+      padding: 0 16px;
+      transition: opacity 0.3s ease;
+      z-index: 5;
+      line-height: 1.6;
+    }
+    #intro.hidden {
+      opacity: 0;
+    }
 
-        body {
-            font-family: var(--font-family);
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-        }
+    /* 가운데 모달용 오버레이 */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 10;
+    }
+    .detail-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
-        /* --- Layout --- */
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 60px 40px;
-        }
+    .detail-modal {
+      width: min(480px, 80vw);
+      max-height: min(70vh, 90vh);
+      background: rgba(255,255,255,0.98);
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.22);
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: pop-in 0.22s ease-out;
+    }
 
-        /* --- Header --- */
-        header {
-            margin-bottom: 60px;
-        }
+    @keyframes pop-in {
+      from {
+        transform: translateY(6px) scale(0.96);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
 
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 300;
-            letter-spacing: -0.03em;
-            margin-bottom: 40px;
-            color: var(--text-main);
-        }
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .detail-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .detail-tag {
+      font-size: 0.8rem;
+      color: #777;
+      margin-top: 4px;
+    }
+    .detail-close {
+      border: none;
+      background: transparent;
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 6px;
+      margin: -4px -4px 0 0;
+    }
+    .detail-body {
+      font-size: 0.9rem;
+      color: #444;
+      line-height: 1.6;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .detail-meta {
+      font-size: 0.78rem;
+      color: #999;
+      margin-top: 4px;
+    }
 
-        /* --- Navigation (Chips) --- */
-        .filter-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 50px;
-        }
-
-        .filter-btn {
-            background: transparent;
-            border: 1px solid #dadce0;
-            padding: 8px 20px;
-            border-radius: var(--radius-chip);
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-sub);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: var(--font-family);
-        }
-
-        .filter-btn:hover {
-            background-color: var(--surface-color);
-            color: var(--text-main);
-            border-color: #dadce0;
-        }
-
-        .filter-btn.active {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-            color: #fff;
-        }
-
-        /* --- Gallery Grid --- */
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: var(--gap);
-            width: 100%;
-        }
-
-        .gallery-item {
-            position: relative;
-            break-inside: avoid;
-            margin-bottom: 0;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-            cursor: zoom-in;
-            border-radius: var(--radius-card);
-            overflow: hidden;
-            background-color: var(--surface-color);
-        }
-
-        .gallery-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-            transition: transform 0.4s ease, filter 0.4s ease;
-        }
-
-        .gallery-item:hover img {
-            transform: scale(1.03);
-            filter: brightness(0.95);
-        }
-
-        .item-info {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 20px;
-            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
-            color: white;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            font-size: 0.9rem;
-            font-weight: 400;
-            pointer-events: none;
-        }
-
-        .gallery-item:hover .item-info {
-            opacity: 1;
-        }
-
-        /* --- Lightbox --- */
-        .lightbox {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.98);
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .lightbox.active {
-            display: flex;
-            animation: fadeIn 0.2s ease-out;
-        }
-
-        .lightbox-img {
-            max-width: 95%;
-            max-height: 90vh;
-            border-radius: 8px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-
-        .lightbox-close {
-            position: absolute;
-            top: 30px;
-            right: 40px;
-            font-size: 2.5rem;
-            line-height: 1;
-            cursor: pointer;
-            color: var(--text-main);
-            background: none;
-            border: none;
-            padding: 10px;
-        }
-
-        /* --- Animations --- */
-        @keyframes fadeUp {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* --- Mobile Responsive --- */
-        @media (max-width: 768px) {
-            .container {
-                padding: 30px 20px;
-            }
-            h1 {
-                font-size: 2.2rem;
-                margin-bottom: 30px;
-            }
-            .filter-nav {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                padding-bottom: 10px;
-                -webkit-overflow-scrolling: touch;
-                margin-bottom: 30px;
-                gap: 8px;
-            }
-            .filter-nav::-webkit-scrollbar {
-                display: none;
-            }
-            .filter-btn {
-                white-space: nowrap;
-                padding: 6px 16px;
-                font-size: 0.9rem;
-            }
-            .gallery-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-            .gallery-item {
-                border-radius: 8px;
-            }
-            .lightbox-close {
-                top: 20px;
-                right: 20px;
-                font-size: 2rem;
-            }
-        }
-    </style>
+    /* ====== 모바일(좁은 화면)에서 확실히 크게 ====== */
+    @media (max-width: 900px) {
+      #intro {
+        font-size: 1.3rem;
+        padding: 0 28px;
+      }
+      .detail-modal {
+        width: 94vw;
+        max-height: 80vh;
+        border-radius: 18px;
+        padding: 22px 20px;
+      }
+      .detail-title {
+        font-size: 1.35rem;
+      }
+      .detail-tag {
+        font-size: 0.95rem;
+      }
+      .detail-body {
+        font-size: 1.05rem;
+      }
+      .detail-meta {
+        font-size: 0.9rem;
+      }
+      .detail-close {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
 </head>
 <body>
+  <canvas id="canvas"></canvas>
+  <div id="intro">
+    어디든 한 번 탭/클릭하면 작업들이 우르르 떨어집니다.<br />
+    도형을 드래그해서 움직이고, 톡 클릭하면 설명이 떠요.
+  </div>
 
-    <div class="container">
-        <header>
-            <h1>binding</h1>
-            
-            <nav class="filter-nav">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="clip">Clip</button>
-                <button class="filter-btn" data-filter="etc">Etc</button>
-                <button class="filter-btn" data-filter="glue">Glue</button>
-                <button class="filter-btn" data-filter="paper folding">Paper Folding</button>
-                <button class="filter-btn" data-filter="paper roll">Paper Roll</button>
-                <button class="filter-btn" data-filter="ring">Ring</button>
-                <button class="filter-btn" data-filter="thread">Thread</button>
-            </nav>
-        </header>
-
-        <main class="gallery-grid" id="gallery">
-            </main>
+  <!-- 중앙 모달 오버레이 -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-modal">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title" id="detailTitle">작업 제목</div>
+          <div class="detail-tag" id="detailTag">카테고리 / 연도</div>
+        </div>
+        <button class="detail-close" id="detailClose" aria-label="닫기">×</button>
+      </div>
+      <div class="detail-body" id="detailBody">
+        여기에 작업 설명이 들어갑니다.
+      </div>
+      <div class="detail-meta" id="detailMeta"></div>
     </div>
+  </div>
 
-    <div class="lightbox" id="lightbox">
-        <button class="lightbox-close">&times;</button>
-        <img src="" alt="Zoomed Image" class="lightbox-img">
-    </div>
+  <script>
+    // ===== 캔버스 / 기본 세팅 =====
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const intro = document.getElementById('intro');
 
-    <script>
-        // 사용자의 실제 파일 리스트를 기반으로 생성된 데이터입니다.
-        const imageData = [
-            // --- Clip ---
-            { category: 'clip', src: 'clip/Claudia de la Torre’s artist editions are expanding the idea of what a book can be.jpeg', title: 'Artist Editions' },
-            { category: 'clip', src: 'clip/Fabric - Hola Bonjour.jpeg', title: 'Fabric Clip' },
-            { category: 'clip', src: 'clip/_ (11).jpeg', title: 'Clip (11)' },
-            { category: 'clip', src: 'clip/_ (26).jpeg', title: 'Clip (26)' },
-            { category: 'clip', src: 'clip/_ (27).jpeg', title: 'Clip (27)' },
-            { category: 'clip', src: 'clip/_ (3).jpeg', title: 'Clip (3)' },
-            { category: 'clip', src: 'clip/_ (36).jpeg', title: 'Clip (36)' },
-            { category: 'clip', src: 'clip/_ (39).jpeg', title: 'Clip (39)' },
-            { category: 'clip', src: 'clip/_ (48).jpeg', title: 'Clip (48)' },
-            { category: 'clip', src: 'clip/_ (49).jpeg', title: 'Clip (49)' },
-            { category: 'clip', src: 'clip/_ (51).jpeg', title: 'Clip (51)' },
-            { category: 'clip', src: 'clip/_ (52).jpeg', title: 'Clip (52)' },
-            { category: 'clip', src: 'clip/print finishings _ Are_na.jpeg', title: 'Print Finishings' },
+    const detailOverlay = document.getElementById('detailOverlay');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailTag = document.getElementById('detailTag');
+    const detailBody = document.getElementById('detailBody');
+    const detailMeta = document.getElementById('detailMeta');
+    const detailClose = document.getElementById('detailClose');
 
-            // --- Etc ---
-            { category: 'etc', src: 'etc/8x8 Art Booklet.jpeg', title: '8x8 Art Booklet' },
-            { category: 'etc', src: 'etc/Atelier Jeanne Frère » American Painters.jpeg', title: 'Atelier Jeanne Frère' },
-            { category: 'etc', src: 'etc/Genetics.jpeg', title: 'Genetics' },
-            { category: 'etc', src: 'etc/Instagram.jpeg', title: 'Instagram' },
-            { category: 'etc', src: 'etc/Reblog by @the-book-design · 9 images.jpeg', title: 'Book Design Reblog' },
-            { category: 'etc', src: 'etc/This Artwork was by Jamie Shafer.jpeg', title: 'Artwork by Jamie Shafer' },
-            { category: 'etc', src: 'etc/_ (1).jpeg', title: 'Etc (1)' },
-            { category: 'etc', src: 'etc/_ (12).jpeg', title: 'Etc (12)' },
-            { category: 'etc', src: 'etc/_ (14).jpeg', title: 'Etc (14)' },
-            { category: 'etc', src: 'etc/_ (16).jpeg', title: 'Etc (16)' },
-            { category: 'etc', src: 'etc/_ (3).jpeg', title: 'Etc (3)' },
-            { category: 'etc', src: 'etc/_ (33).jpeg', title: 'Etc (33)' },
-            { category: 'etc', src: 'etc/_ (42).jpeg', title: 'Etc (42)' },
-            { category: 'etc', src: 'etc/_ (50).jpeg', title: 'Etc (50)' },
-            { category: 'etc', src: "etc/concertina's in een houder _ made by Marleen Derweuwen.jpeg", title: "Concertina's" },
-            { category: 'etc', src: 'etc/hj.jpeg', title: 'Hj' },
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-            // --- Glue ---
-            { category: 'glue', src: 'glue/1974 by Li Lang.jpeg', title: '1974 by Li Lang' },
-            { category: 'glue', src: 'glue/_ (13).jpeg', title: 'Glue (13)' },
-            { category: 'glue', src: 'glue/_ (19).jpeg', title: 'Glue (19)' },
-            { category: 'glue', src: 'glue/_ (41).jpeg', title: 'Glue (41)' },
-            { category: 'glue', src: 'glue/_ (5).jpeg', title: 'Glue (5)' },
-            { category: 'glue', src: 'glue/_.jpeg', title: 'Glue Binding' },
+    const MOBILE_BREAKPOINT = 900;
+    const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
-            // --- Paper Folding ---
-            { category: 'paper folding', src: 'paper folding/@itselnacin.jpeg', title: '@itselnacin' },
-            { category: 'paper folding', src: 'paper folding/All posts • Instagram (2).jpeg', title: 'Instagram Post' },
-            { category: 'paper folding', src: 'paper folding/Artist book by Emma Lawrenson.jpeg', title: 'Emma Lawrenson' },
-            { category: 'paper folding', src: 'paper folding/Bea Jakob, Kalligrafie, Kriegstetten, Solothurn.jpeg', title: 'Bea Jakob' },
-            { category: 'paper folding', src: 'paper folding/Instagram (1).jpeg', title: 'Instagram (1)' },
-            { category: 'paper folding', src: 'paper folding/Memories Are Like People You Love and Hate.jpeg', title: 'Memories' },
-            { category: 'paper folding', src: 'paper folding/Morito Kozuma _ Coffee tree - to Nepal Author_ Kaori Iwatake Photo_ Shohei Yamamoto, Kaori Iwatake Nepali Translation_ Richard Shahi Editing_ Kaori… _ Instagram.jpeg', title: 'Coffee Tree to Nepal' },
-            { category: 'paper folding', src: 'paper folding/Our Future Garden _ Are_na.jpeg', title: 'Our Future Garden' },
-            { category: 'paper folding', src: 'paper folding/Tooth and Nail.jpeg', title: 'Tooth and Nail' },
-            { category: 'paper folding', src: 'paper folding/_ (1).jpeg', title: 'Paper Folding (1)' },
-            { category: 'paper folding', src: 'paper folding/_ (18).jpeg', title: 'Paper Folding (18)' },
-            { category: 'paper folding', src: 'paper folding/_ (4).jpeg', title: 'Paper Folding (4)' },
-            { category: 'paper folding', src: 'paper folding/_ (6).jpeg', title: 'Paper Folding (6)' },
-            { category: 'paper folding', src: 'paper folding/_ (7).jpeg', title: 'Paper Folding (7)' },
-            { category: 'paper folding', src: 'paper folding/_ (9).jpeg', title: 'Paper Folding (9)' },
-            { category: 'paper folding', src: 'paper folding/left v right.jpeg', title: 'Left v Right' },
-            { category: 'paper folding', src: 'paper folding/universum mannucci.jpeg', title: 'Universum Mannucci' },
-            { category: 'paper folding', src: 'paper folding/「靳埭强设计奖2022」年度奖项与获奖作品发布.jpeg', title: 'Design Award 2022' },
-            { category: 'paper folding', src: 'paper folding/余佩真 專輯《真真》Jen Jen ALBUM.jpeg', title: 'Jen Jen Album' },
+    // ===== 작업 데이터 (슬롯 비율 포함) =====
+    const works = [
+      {
+        id: 'work-1',
+        title: '포스터 시리즈 A',
+        tag: 'Graphic / 2024',
+        description: '굵은 타이포와 제한된 컬러 팔레트로 리듬을 만든 포스터 시리즈입니다.',
+        meta: 'Size: 700×1000mm · Tool: Photoshop, Illustrator',
+        slotW: 2,   // 가로 2
+        slotH: 3    // 세로 3 (세로 긴 포맷)
+      },
+      {
+        id: 'work-2',
+        title: '웹 인터랙션 실험',
+        tag: 'Interactive / 2025',
+        description: '스크롤과 물리 기반 움직임을 결합한 인터랙티브 웹 실험입니다.',
+        meta: 'Prototype · HTML/CSS/JS',
+        slotW: 3,   // 가로 긴 포맷
+        slotH: 2
+      },
+      {
+        id: 'work-3',
+        title: '브랜딩 콘셉트 B',
+        tag: 'Branding / 2023',
+        description: '소셜 이슈와 연결된 브랜드 톤앤매너를 시각 언어로 정리한 프로젝트입니다.',
+        meta: 'Logo · Stationery · SNS kit',
+        slotW: 2,
+        slotH: 2    // 정사각형 느낌
+      },
+      {
+        id: 'work-4',
+        title: '에디토리얼 레이아웃',
+        tag: 'Editorial / 2023',
+        description: '텍스트 밀도가 높은 글을 읽기 쉽게 재배열한 에디토리얼 디자인입니다.',
+        meta: '80p · InDesign, Typography',
+        slotW: 3,
+        slotH: 4    // 세로 더 긴 포맷
+      },
+      {
+        id: 'work-5',
+        title: '동적 아이덴티티',
+        tag: 'Motion / 2024',
+        description: '로고와 모션 그래픽을 묶어 시스템 형태로 구성한 아이덴티티 실험입니다.',
+        meta: 'Motion System · After Effects',
+        slotW: 2,
+        slotH: 2
+      }
+    ];
 
-            // --- Paper Roll ---
-            { category: 'paper roll', src: 'paper roll/All posts • Instagram.jpeg', title: 'Paper Roll Instagram' },
-            { category: 'paper roll', src: 'paper roll/HOUSEWORK_ Handmade Books & Boxes.jpeg', title: 'Housework' },
-            { category: 'paper roll', src: 'paper roll/History of Books - Scroll With Auto Rewind.jpeg', title: 'Scroll with Auto Rewind' },
-            { category: 'paper roll', src: 'paper roll/Mike Tully explores the ways in which graphic design can serve different communities.jpeg', title: 'Mike Tully Scroll' },
-            { category: 'paper roll', src: 'paper roll/Sold at auction Italian Illuminated Esther Scroll (Megillah) Auction Number 2402 Lot Number 365 _ Skinner Auctioneers.jpeg', title: 'Esther Scroll' },
-            { category: 'paper roll', src: 'paper roll/_ (13).jpeg', title: 'Paper Roll (13)' },
-            { category: 'paper roll', src: 'paper roll/_ (5).jpeg', title: 'Paper Roll (5)' },
-            { category: 'paper roll', src: 'paper roll/_ (9).jpeg', title: 'Paper Roll (9)' },
-            { category: 'paper roll', src: 'paper roll/c-n insp_ Photo.jpeg', title: 'C-N Inspiration' },
+    // ===== 도형 배열 =====
+    const shapes = [];
+    let hasSpawned = false;
 
-            // --- Ring ---
-            { category: 'ring', src: 'ring/All Posts • Instagram (1).jpeg', title: 'Ring Instagram' },
-            { category: 'ring', src: 'ring/BAR FU.jpeg', title: 'Bar Fu' },
-            { category: 'ring', src: 'ring/Hanne Lippard at KINDERHOOK & CARACAS – Art Viewer (1).jpeg', title: 'Hanne Lippard' },
-            { category: 'ring', src: 'ring/Instagram (2).jpeg', title: 'Ring Instagram (2)' },
-            { category: 'ring', src: 'ring/Instagram.jpeg', title: 'Ring Instagram (3)' },
-            { category: 'ring', src: 'ring/Kontorutstyr.jpeg', title: 'Kontorutstyr' },
-            { category: 'ring', src: 'ring/_ (16).jpeg', title: 'Ring (16)' },
-            { category: 'ring', src: 'ring/_ (19).jpeg', title: 'Ring (19)' },
-            { category: 'ring', src: 'ring/_ (20).jpeg', title: 'Ring (20)' },
-            { category: 'ring', src: 'ring/_ (21).jpeg', title: 'Ring (21)' },
-            { category: 'ring', src: 'ring/_ (23).jpeg', title: 'Ring (23)' },
-            { category: 'ring', src: 'ring/_ (24).jpeg', title: 'Ring (24)' },
-            { category: 'ring', src: 'ring/_ (31).jpeg', title: 'Ring (31)' },
-            { category: 'ring', src: 'ring/_ (35).jpeg', title: 'Ring (35)' },
-            { category: 'ring', src: 'ring/_ (37).jpeg', title: 'Ring (37)' },
-            { category: 'ring', src: 'ring/_ (38).jpeg', title: 'Ring (38)' },
-            { category: 'ring', src: 'ring/_ (43).jpeg', title: 'Ring (43)' },
-            { category: 'ring', src: 'ring/_ (46).jpeg', title: 'Ring (46)' },
-            { category: 'ring', src: 'ring/_ (47).jpeg', title: 'Ring (47)' },
-            { category: 'ring', src: 'ring/_ (53).jpeg', title: 'Ring (53)' },
-            { category: 'ring', src: 'ring/_ (58).jpeg', title: 'Ring (58)' },
-            { category: 'ring', src: 'ring/_ (7).jpeg', title: 'Ring (7)' },
-            { category: 'ring', src: 'ring/hinge bound sketchbooks, Tate Marsland _ Are_na.jpeg', title: 'Hinge Bound Sketchbooks' },
+    function randomColor() {
+      const palette = [
+        '#f6a5c0',
+        '#9ad0f5',
+        '#f9dd8a',
+        '#c3f0b8',
+        '#d1b2ff',
+        '#ffd6a5',
+        '#bdb2ff',
+        '#ffc6ff'
+      ];
+      return palette[Math.floor(Math.random() * palette.length)];
+    }
 
-            // --- Thread ---
-            { category: 'thread', src: 'thread/2025 Calendar - Pucker and Bloat.jpeg', title: '2025 Calendar' },
-            { category: 'thread', src: 'thread/ARA-Couleur du vent COPYYYYYYYYYYYYYYYYYYYYYYY.jpeg', title: 'ARA-Couleur du vent' },
-            { category: 'thread', src: 'thread/Adele Outteridge.jpeg', title: 'Adele Outteridge' },
-            { category: 'thread', src: 'thread/All posts • Instagram.jpeg', title: 'Thread Instagram' },
-            { category: 'thread', src: 'thread/Beautiful examples of Japanese stab-stitch bindings.jpeg', title: 'Stab-Stitch Bindings' },
-            { category: 'thread', src: 'thread/Binding with the basic weave of the basket-making.jpeg', title: 'Basket Weave' },
-            { category: 'thread', src: 'thread/Carnet de croquis _ _ Sketchbook pour Journal de voyage en _ Etsy.jpeg', title: 'Carnet de Croquis' },
-            { category: 'thread', src: 'thread/Darren Oorloff - Little Spines.jpeg', title: 'Little Spines' },
-            { category: 'thread', src: 'thread/Handmade Books _ United States _ Scrap Paper Circus.jpeg', title: 'Handmade Books' },
-            { category: 'thread', src: 'thread/Inspiración_ encuadernación.jpeg', title: 'Inspiración' },
-            { category: 'thread', src: 'thread/STA 100 - Artifacts of Memory.jpeg', title: 'Artifacts of Memory' },
-            { category: 'thread', src: 'thread/Top 10 Long-Stitch Bookbinding Tutorials.jpeg', title: 'Long-Stitch Tutorials' },
-            { category: 'thread', src: 'thread/_ (10).jpeg', title: 'Thread (10)' },
-            { category: 'thread', src: 'thread/_ (11).jpeg', title: 'Thread (11)' },
-            { category: 'thread', src: 'thread/_ (12).jpeg', title: 'Thread (12)' },
-            { category: 'thread', src: 'thread/_ (14).jpeg', title: 'Thread (14)' },
-            { category: 'thread', src: 'thread/_ (15).jpeg', title: 'Thread (15)' },
-            { category: 'thread', src: 'thread/_ (17).jpeg', title: 'Thread (17)' },
-            { category: 'thread', src: 'thread/_ (2).jpeg', title: 'Thread (2)' },
-            { category: 'thread', src: 'thread/_ (22).jpeg', title: 'Thread (22)' },
-            { category: 'thread', src: 'thread/_ (25).jpeg', title: 'Thread (25)' },
-            { category: 'thread', src: 'thread/_ (28).jpeg', title: 'Thread (28)' },
-            { category: 'thread', src: 'thread/_ (30).jpeg', title: 'Thread (30)' },
-            { category: 'thread', src: 'thread/_ (32).jpeg', title: 'Thread (32)' },
-            { category: 'thread', src: 'thread/_ (34).jpeg', title: 'Thread (34)' },
-            { category: 'thread', src: 'thread/_ (4).jpeg', title: 'Thread (4)' },
-            { category: 'thread', src: 'thread/_ (40).jpeg', title: 'Thread (40)' },
-            { category: 'thread', src: 'thread/_ (44).jpeg', title: 'Thread (44)' },
-            { category: 'thread', src: 'thread/_ (45).jpeg', title: 'Thread (45)' },
-            { category: 'thread', src: 'thread/_ (54).jpeg', title: 'Thread (54)' },
-            { category: 'thread', src: 'thread/_ (55).jpeg', title: 'Thread (55)' },
-            { category: 'thread', src: 'thread/_ (56).jpeg', title: 'Thread (56)' },
-            { category: 'thread', src: 'thread/_ (57).jpeg', title: 'Thread (57)' },
-            { category: 'thread', src: 'thread/_ (59).jpeg', title: 'Thread (59)' },
-            { category: 'thread', src: 'thread/_ (6).jpeg', title: 'Thread (6)' },
-            { category: 'thread', src: 'thread/_ (8).jpeg', title: 'Thread (8)' },
-            { category: 'thread', src: 'thread/asa-no-ha toji, kikko toji, butterfly.jpeg', title: 'Asa-no-ha Toji' },
-            { category: 'thread', src: 'thread/naaien op linten _ made by Marleen Derweduwen.jpeg', title: 'Naaien op Linten' },
-            { category: 'thread', src: 'thread/sunny kabocha.jpeg', title: 'Sunny Kabocha' }
-        ];
+    function spawnShapes() {
+      const w = canvas.width;
+      const h = canvas.height;
+      shapes.length = 0;
 
-        const gallery = document.getElementById('gallery');
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const lightbox = document.getElementById('lightbox');
-        const lightboxImg = lightbox.querySelector('.lightbox-img');
-        const lightboxClose = lightbox.querySelector('.lightbox-close');
+      const mobile = isMobile();
 
-        // --- 이미지 렌더링 함수 ---
-        function renderGallery(filter = 'all') {
-            gallery.innerHTML = '';
-            
-            const filteredData = filter === 'all' 
-                ? imageData 
-                : imageData.filter(item => item.category === filter);
+      const count = mobile ? works.length : works.length * 2;
+      const baseUnit = mobile ? 40 : 30; // 블럭 기본 단위 (조절해서 전체 크기 튜닝)
 
-            filteredData.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'gallery-item';
-                // 애니메이션 딜레이: index가 커질수록 너무 느려지지 않도록 최대값 제한 또는 배치별 계산
-                div.style.animationDelay = `${Math.min(index * 30, 600)}ms`;
-                
-                div.innerHTML = `
-                    <img src="${item.src}" alt="${item.title}" loading="lazy">
-                    <div class="item-info">
-                        <span>${item.title}</span>
-                    </div>
-                `;
-                
-                div.addEventListener('click', () => openLightbox(item.src));
-                gallery.appendChild(div);
-            });
-        }
+      for (let i = 0; i < count; i++) {
+        const work = works[i % works.length];
 
-        // --- 필터링 이벤트 ---
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                filterBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const filterValue = btn.getAttribute('data-filter');
-                renderGallery(filterValue);
-            });
+        const slotW = work.slotW || 2;
+        const slotH = work.slotH || 2;
+
+        // 실제 픽셀 단위 크기
+        const halfW = slotW * baseUnit;
+        const halfH = slotH * baseUnit;
+
+        const x = halfW + Math.random() * (w - 2 * halfW);
+        const y = -200 - Math.random() * 300;
+        const vx = (Math.random() - 0.5) * (mobile ? 40 : 60);
+        const vy = 0;
+
+        shapes.push({
+          id: work.id,
+          x,
+          y,
+          vx,
+          vy,
+          halfW,
+          halfH,
+          color: randomColor(),
+          work,
+          isDragging: false
         });
+      }
+    }
 
-        // --- 라이트박스 기능 ---
-        function openLightbox(src) {
-            lightboxImg.src = src;
-            lightbox.classList.add('active');
-            document.body.style.overflow = 'hidden';
+    // ===== 물리 업데이트 =====
+    const gravity = 800;
+    const damping = 0.8;
+    const restitution = 0.5;
+    let lastTime = null;
+
+    function update(dt) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      for (const s of shapes) {
+        if (!s.isDragging) {
+          s.vy += gravity * dt;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
         }
 
-        function closeLightbox() {
-            lightbox.classList.remove('active');
-            document.body.style.overflow = '';
-            setTimeout(() => { lightboxImg.src = ''; }, 250);
+        // 좌우 벽 (사각형 기준)
+        if (s.x - s.halfW < 0) {
+          s.x = s.halfW;
+          if (s.vx < 0) s.vx = -s.vx * damping;
+        }
+        if (s.x + s.halfW > w) {
+          s.x = w - s.halfW;
+          if (s.vx > 0) s.vx = -s.vx * damping;
         }
 
-        lightboxClose.addEventListener('click', closeLightbox);
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox) closeLightbox();
-        });
+        // 바닥
+        if (s.y + s.halfH > h) {
+          s.y = h - s.halfH;
+          if (s.vy > 0) s.vy = -s.vy * damping;
+        }
 
-        // 초기 렌더링
-        renderGallery('all');
+        // 천장
+        if (s.y - s.halfH < 0) {
+          s.y = s.halfH;
+          if (s.vy < 0) s.vy = -s.vy * damping;
+        }
+      }
 
-    </script>
+      // ===== 도형 간 충돌 (AABB 사각형) =====
+      for (let i = 0; i < shapes.length; i++) {
+        for (let j = i + 1; j < shapes.length; j++) {
+          const a = shapes[i];
+          const b = shapes[j];
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+
+          const overlapX = (a.halfW + b.halfW) - Math.abs(dx);
+          if (overlapX <= 0) continue;
+
+          const overlapY = (a.halfH + b.halfH) - Math.abs(dy);
+          if (overlapY <= 0) continue;
+
+          // 어느 축으로 더 겹쳤는지에 따라 분리 방향 결정
+          if (overlapX < overlapY) {
+            // X축으로 밀어내기
+            const signX = dx < 0 ? -1 : 1;
+
+            if (a.isDragging && !b.isDragging) {
+              b.x += signX * overlapX;
+            } else if (b.isDragging && !a.isDragging) {
+              a.x -= signX * overlapX;
+            } else {
+              a.x -= signX * overlapX * 0.5;
+              b.x += signX * overlapX * 0.5;
+            }
+
+            const relVx = b.vx - a.vx;
+            if (relVx * signX < 0) {
+              const jImpulse = -(1 + restitution) * relVx / 2;
+              a.vx -= jImpulse;
+              b.vx += jImpulse;
+              a.vx *= damping;
+              b.vx *= damping;
+            }
+          } else {
+            // Y축으로 밀어내기
+            const signY = dy < 0 ? -1 : 1;
+
+            if (a.isDragging && !b.isDragging) {
+              b.y += signY * overlapY;
+            } else if (b.isDragging && !a.isDragging) {
+              a.y -= signY * overlapY;
+            } else {
+              a.y -= signY * overlapY * 0.5;
+              b.y += signY * overlapY * 0.5;
+            }
+
+            const relVy = b.vy - a.vy;
+            if (relVy * signY < 0) {
+              const jImpulse = -(1 + restitution) * relVy / 2;
+              a.vy -= jImpulse;
+              b.vy += jImpulse;
+              a.vy *= damping;
+              b.vy *= damping;
+            }
+          }
+        }
+      }
+    }
+
+    // ===== 라운드 사각형 Path 유틸 =====
+    function roundRectPath(ctx, cx, cy, halfW, halfH, radius) {
+      const x = cx - halfW;
+      const y = cy - halfH;
+      const w = halfW * 2;
+      const h = halfH * 2;
+      const r = Math.min(radius, w / 2, h / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    // ===== 렌더링 =====
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const mobile = isMobile();
+
+      for (const s of shapes) {
+        const cornerRadius = mobile ? 20 : 14;
+        roundRectPath(ctx, s.x, s.y, s.halfW, s.halfH, cornerRadius);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.font = mobile ? '700 20px system-ui' : '500 13px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.id.replace('work-', '#'), s.x, s.y);
+      }
+    }
+
+    function loop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.03);
+      lastTime = timestamp;
+
+      if (shapes.length > 0) {
+        update(dt);
+        draw();
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ===== 상세 모달 =====
+    function showDetail(work) {
+      detailTitle.textContent = work.title;
+      detailTag.textContent = work.tag;
+      detailBody.textContent = work.description;
+      detailMeta.textContent = work.meta || '';
+      detailOverlay.classList.add('open');
+    }
+    function hideDetail() {
+      detailOverlay.classList.remove('open');
+    }
+
+    detailClose.addEventListener('click', hideDetail);
+    detailOverlay.addEventListener('click', (e) => {
+      if (e.target === detailOverlay) hideDetail();
+    });
+
+    // ===== 포인터(마우스 + 터치) 공통 상태 =====
+    let isPointerDown = false;
+    let dragTarget = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let lastPointerX = 0;
+    let lastPointerY = 0;
+    let pointerDownTime = 0;
+    let pointerMovedDistSq = 0;
+    let dragHistory = []; // {x, y, t}
+
+    function getShapeAt(x, y) {
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const s = shapes[i];
+        if (
+          x >= s.x - s.halfW &&
+          x <= s.x + s.halfW &&
+          y >= s.y - s.halfH &&
+          y <= s.y + s.halfH
+        ) {
+          return s;
+        }
+      }
+      return null;
+    }
+
+    function pointerDown(x, y) {
+      isPointerDown = true;
+      lastPointerX = x;
+      lastPointerY = y;
+      pointerDownTime = performance.now();
+      pointerMovedDistSq = 0;
+      dragHistory = [];
+
+      const s = getShapeAt(x, y);
+      if (s) {
+        dragTarget = s;
+        dragOffsetX = x - s.x;
+        dragOffsetY = y - s.y;
+        s.isDragging = true;
+      } else {
+        dragTarget = null;
+      }
+    }
+
+    function pointerMove(x, y) {
+      if (!isPointerDown || !dragTarget) return;
+
+      const dx = x - lastPointerX;
+      const dy = y - lastPointerY;
+      pointerMovedDistSq += dx * dx + dy * dy;
+
+      dragTarget.x = x - dragOffsetX;
+      dragTarget.y = y - dragOffsetY;
+
+      lastPointerX = x;
+      lastPointerY = y;
+
+      const now = performance.now();
+      dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: now });
+      if (dragHistory.length > 5) dragHistory.shift();
+    }
+
+    function pointerUp(x, y) {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+
+      const upX = (typeof x === 'number') ? x : lastPointerX;
+      const upY = (typeof y === 'number') ? y : lastPointerY;
+
+      const elapsed = performance.now() - pointerDownTime;
+      const CLICK_DIST_SQ = 10 * 10;
+      const CLICK_TIME = 300;
+
+      let clickedShape = dragTarget || getShapeAt(upX, upY);
+
+      if (dragTarget) {
+        dragTarget.isDragging = false;
+        if (dragHistory.length >= 2) {
+          const a = dragHistory[dragHistory.length - 2];
+          const b = dragHistory[dragHistory.length - 1];
+          const dtMs = b.t - a.t;
+          if (dtMs > 0) {
+            const dt = dtMs / 1000;
+            const vx = (b.x - a.x) / dt;
+            const vy = (b.y - a.y) / dt;
+            dragTarget.vx = vx * 0.9;
+            dragTarget.vy = vy * 0.9;
+          }
+        }
+      }
+
+      dragTarget = null;
+      dragHistory = [];
+
+      if (clickedShape && pointerMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
+        showDetail(clickedShape.work);
+      }
+    }
+
+    // ===== 마우스 이벤트 =====
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      pointerDown(x, y);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isPointerDown) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      pointerMove(x, y);
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      pointerUp(x, y);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (dragTarget) dragTarget.isDragging = false;
+      isPointerDown = false;
+      dragTarget = null;
+      dragHistory = [];
+    });
+
+    // ===== 터치 이벤트 =====
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      pointerDown(x, y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!isPointerDown) return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      pointerMove(x, y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      pointerUp(lastPointerX, lastPointerY);
+    }, { passive: false });
+
+    canvas.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      if (dragTarget) dragTarget.isDragging = false;
+      isPointerDown = false;
+      dragTarget = null;
+      dragHistory = [];
+    }, { passive: false });
+
+    // ===== 첫 클릭/탭 시 도형 떨어뜨리기 =====
+    function handleFirstActivate() {
+      if (!hasSpawned) {
+        hasSpawned = true;
+        intro.classList.add('hidden');
+        spawnShapes();
+      }
+    }
+
+    document.body.addEventListener('click', function onceClick() {
+      handleFirstActivate();
+      document.body.removeEventListener('click', onceClick);
+    }, { once: true });
+
+    document.body.addEventListener('touchstart', function onceTouch() {
+      handleFirstActivate();
+      document.body.removeEventListener('touchstart', onceTouch);
+    }, { once: true, passive: true });
+  </script>
 </body>
 </html>
